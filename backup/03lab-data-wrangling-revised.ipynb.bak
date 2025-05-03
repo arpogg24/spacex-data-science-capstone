@@ -1,0 +1,427 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# **Space X Falcon 9 First Stage Landing Prediction**\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Data Wrangling and Label Creation\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "In this notebook, I'll perform some Exploratory Data Analysis (EDA) to find patterns in the data and determine what would be appropriate labels for training supervised models. \n",
+    "\n",
+    "In the dataset, there are several different cases where the booster did not land successfully. Sometimes a landing was attempted but failed due to an accident; for example, <code>True Ocean</code> means the mission outcome was successfully landed to a specific region of the ocean while <code>False Ocean</code> means the mission outcome was unsuccessfully landed to a specific region of the ocean. <code>True RTLS</code> means the mission outcome was successfully landed to a ground pad <code>False RTLS</code> means the mission outcome was unsuccessfully landed to a ground pad. <code>True ASDS</code> means the mission outcome was successfully landed on a drone ship <code>False ASDS</code> means the mission outcome was unsuccessfully landed on a drone ship. \n",
+    "\n",
+    "My goal is to convert those outcomes into Training Labels with `1` meaning the booster successfully landed and `0` meaning it was unsuccessful.\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Project Goals\n",
+    "In this notebook, I will:\n",
+    "\n",
+    "- Perform Exploratory Data Analysis on the SpaceX dataset\n",
+    "- Create appropriate Training Labels for machine learning models\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "----\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Import Libraries and Define Auxiliary Functions\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "First, I'll import the necessary libraries.\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "# Pandas is a software library written for the Python programming language for data manipulation and analysis.\n",
+    "import pandas as pd\n",
+    "# NumPy is a library for the Python programming language, adding support for large, multi-dimensional arrays and matrices, along with a large collection of high-level mathematical functions to operate on these arrays\n",
+    "import numpy as np"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### Initial Data Analysis\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Let's load the SpaceX dataset that was prepared in the previous notebook.\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "df = pd.read_csv(\"data/dataset_part_1.csv\")\n",
+    "df.head(10)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "I'll identify and calculate the percentage of missing values in each attribute\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "df.isnull().sum()/len(df)*100"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Now I'll identify which columns are numerical and which are categorical:\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "df.dtypes"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Analyzing Launch Sites\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "The data contains several SpaceX launch facilities: <a href='https://en.wikipedia.org/wiki/List_of_Cape_Canaveral_and_Merritt_Island_launch_sites'>Cape Canaveral Space</a> Launch Complex 40 <b>VAFB SLC 4E</b>, Vandenberg Air Force Base Space Launch Complex 4E <b>(SLC-4E)</b>, Kennedy Space Center Launch Complex 39A <b>KSC LC 39A</b>. The location of each launch is recorded in the column <code>LaunchSite</code>\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Let's examine the number of launches for each site. I'll use the method <code>value_counts()</code> on the column <code>LaunchSite</code> to determine this:\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "# Count the occurrences of each launch site\n",
+    "df[\"LaunchSite\"].value_counts()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Each launch aims for a dedicated orbit. Here are some common orbit types used in SpaceX missions:\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "\n",
+    "\n",
+    "* <b>LEO</b>: Low Earth orbit (LEO) is an Earth-centered orbit with an altitude of 2,000 km (1,200 mi) or less (approximately one-third of the radius of Earth), or with at least 11.25 periods per day (an orbital period of 128 minutes or less) and an eccentricity less than 0.25. Most of the manmade objects in outer space are in LEO <a href='https://en.wikipedia.org/wiki/Low_Earth_orbit'>[1]</a>.\n",
+    "\n",
+    "* <b>VLEO</b>: Very Low Earth Orbits (VLEO) can be defined as the orbits with a mean altitude below 450 km. Operating in these orbits can provide a number of benefits to Earth observation spacecraft as the spacecraft operates closer to the observation <a href='https://www.researchgate.net/publication/271499606_Very_Low_Earth_Orbit_mission_concepts_for_Earth_Observation_Benefits_and_challenges'>[2]</a>.\n",
+    "\n",
+    "\n",
+    "* <b>GTO</b> A geosynchronous orbit is a high Earth orbit that allows satellites to match Earth's rotation. Located at 22,236 miles (35,786 kilometers) above Earth's equator, this position is a valuable spot for monitoring weather, communications and surveillance. Because the satellite orbits at the same speed that the Earth is turning, the satellite seems to stay in place over a single longitude, though it may drift north to south," NASA wrote on its Earth Observatory website <a  href=\"https://www.space.com/29222-geosynchronous-orbit.html\" >[3] </a>.\n",
+    "\n",
+    "\n",
+    "* <b>SSO (or SO)</b>: It is a Sun-synchronous orbit also called a heliosynchronous orbit is a nearly polar orbit around a planet, in which the satellite passes over any given point of the planet's surface at the same local mean solar time <a href=\"https://en.wikipedia.org/wiki/Sun-synchronous_orbit\">[4] <a>.\n",
+    "    \n",
+    "    \n",
+    "    \n",
+    "* <b>ES-L1 </b>: At the Lagrange points the gravitational forces of the two large bodies cancel out in such a way that a small object placed in orbit there is in equilibrium relative to the center of mass of the large bodies. L1 is one such point between the sun and the earth <a href=\"https://en.wikipedia.org/wiki/Lagrange_point#L1_point\">[5]</a>.\n",
+    "    \n",
+    "    \n",
+    "* <b>HEO</b> A highly elliptical orbit, is an elliptic orbit with high eccentricity, usually referring to one around Earth <a href=\"https://en.wikipedia.org/wiki/Highly_elliptical_orbit\">[6]</a>.\n",
+    "\n",
+    "\n",
+    "* <b> ISS </b> A modular space station (habitable artificial satellite) in low Earth orbit. It is a multinational collaborative project between five participating space agencies: NASA (United States), Roscosmos (Russia), JAXA (Japan), ESA (Europe), and CSA (Canada)<a href=\"https://en.wikipedia.org/wiki/International_Space_Station\"> [7] </a>\n",
+    "\n",
+    "\n",
+    "* <b> MEO </b> Geocentric orbits ranging in altitude from 2,000 km (1,200 mi) to just below geosynchronous orbit at 35,786 kilometers (22,236 mi). Also known as an intermediate circular orbit. These are \"most commonly at 20,200 kilometers (12,600 mi), or 20,650 kilometers (12,830 mi), with an orbital period of 12 hours <a href=\"https://en.wikipedia.org/wiki/List_of_orbits\"> [8] </a>\n",
+    "\n",
+    "\n",
+    "* <b> HEO </b> Geocentric orbits above the altitude of geosynchronous orbit (35,786 km or 22,236 mi) <a href=\"https://en.wikipedia.org/wiki/List_of_orbits\"> [9] </a>\n",
+    "\n",
+    "\n",
+    "* <b> GEO </b> It is a circular geosynchronous orbit 35,786 kilometres (22,236 miles) above Earth's equator and following the direction of Earth's rotation <a href=\"https://en.wikipedia.org/wiki/Geostationary_orbit\"> [10] </a>\n",
+    "\n",
+    "\n",
+    "* <b> PO </b> It is one type of satellites in which a satellite passes above or nearly above both poles of the body being orbited (usually a planet such as the Earth <a href=\"https://en.wikipedia.org/wiki/Polar_orbit\"> [11] </a>\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Analyzing Orbit Types\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Now I'll determine the number and occurrence of each orbit type in the column <code>Orbit</code> using the <code>.value_counts()</code> method:\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "# Count the occurrences of each orbit type\n",
+    "df[\"Orbit\"].value_counts()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Analyzing Mission Outcomes\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "I'll use the method <code>.value_counts()</code> on the column <code>Outcome</code> to determine the number of each landing outcome, then assign the result to a variable called landing_outcomes.\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "# Count the occurrences of each landing outcome\n",
+    "landing_outcomes = df[\"Outcome\"].value_counts()\n",
+    "landing_outcomes"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "To better understand the outcomes, here's what each one means:\n",
+    "\n",
+    "- <code>True Ocean</code>: Mission successfully landed in a specific ocean region\n",
+    "- <code>False Ocean</code>: Mission unsuccessfully landed in a specific ocean region\n",
+    "- <code>True RTLS</code>: Mission successfully landed at a ground pad (Return To Launch Site)\n",
+    "- <code>False RTLS</code>: Mission unsuccessfully landed at a ground pad\n",
+    "- <code>True ASDS</code>: Mission successfully landed on a drone ship (Autonomous Spaceport Drone Ship)\n",
+    "- <code>False ASDS</code>: Mission unsuccessfully landed on a drone ship\n",
+    "- <code>None ASDS</code> and <code>None None</code>: These represent a failure to land\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "# Print each outcome with its index\n",
+    "for i, outcome in enumerate(landing_outcomes.keys()):\n",
+    "    print(i, outcome)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Now I'll create a set of outcomes where the first stage did not land successfully:\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "# Define the set of unsuccessful landing outcomes\n",
+    "bad_outcomes = set(landing_outcomes.keys()[[1, 3, 5, 6, 7]])\n",
+    "bad_outcomes"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Creating Landing Outcome Labels\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Using the <code>Outcome</code> column, I'll create a list where the element is zero if the corresponding row in <code>Outcome</code> is in the set <code>bad_outcome</code>; otherwise, it's one. Then I'll assign it to the variable <code>landing_class</code>:\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "# Create a binary classification: 0 for unsuccessful landing, 1 for successful landing\n",
+    "landing_class = [0 if outcome in bad_outcomes else 1 for outcome in df[\"Outcome\"]]\n",
+    "landing_class"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "This variable will represent the classification label that indicates the outcome of each launch. If the value is zero, the first stage did not land successfully; if it's one, the first stage landed successfully.\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Add the classification labels to the dataframe\n",
+    "df['Class'] = landing_class\n",
+    "df[['Class']].head(8)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# View the updated dataframe\n",
+    "df.head(5)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "I can use the following line of code to calculate the success rate of SpaceX's first stage landings:\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Calculate the success rate (mean of the Class column)\n",
+    "df[\"Class\"].mean()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Now I'll export this data to a CSV file for the next phase of analysis:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Export the dataframe to a CSV file\n",
+    "df.to_csv(\"dataset_part_2.csv\", index=False)"
+   ]
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3 (ipykernel)",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.9.7"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 4
+}
