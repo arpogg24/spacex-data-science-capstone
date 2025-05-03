@@ -70,10 +70,10 @@ The analysis produced several significant findings:
 - Clear temporal improvement in success rates from 2013-2020 as technology matured
 
 ### Predictive Modeling
-- Logistic regression provided the best performance, suggesting relatively linear relationships
-- More complex models (SVM, KNN, Decision Trees) did not significantly improve prediction accuracy
-- The final model achieved good accuracy on the test dataset, providing a reliable prediction tool
+- KNN provided the best predictive performance, in terms of both accuracy and F1 score
+- The final model achieved 85\% accuracy on the test dataset, providing a reliable prediction tool
 - Analysis revealed that relatively simple models can effectively predict landing outcomes
+- Accuracy could likely be improved by implementing more complex models (e.g., random forests, ANNs) and/or by further hyperparameter fine-tuning
 
 ## Technical Skills Demonstrated
 This project showcases proficiency in numerous data science skills:
